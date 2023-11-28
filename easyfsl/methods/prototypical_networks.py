@@ -35,7 +35,7 @@ class PrototypicalNetworks(FewShotClassifier):
         # Compute the euclidean distance from queries to prototypes
         scores = self.l2_distance_to_prototypes(query_features)
 
-        return self.softmax_if_specified(scores)
+        return self.softmax_if_specified(scores, temperature=self.temperature)
 
     @staticmethod
     def is_transductive() -> bool:

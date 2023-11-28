@@ -111,7 +111,7 @@ class RelationNetworks(FewShotClassifier):
             -1, self.prototypes.shape[0]
         )
 
-        return self.softmax_if_specified(relation_scores)
+        return self.softmax_if_specified(relation_scores, temperature=self.temperature)
 
     def _validate_features_shape(self, features):
         if len(features.shape) != 4:

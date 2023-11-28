@@ -18,6 +18,7 @@ class FewShotClassifier(nn.Module):
         use_softmax: bool = False,
         feature_centering: Optional[Tensor] = None,
         feature_normalization: Optional[float] = None,
+        temperature: float = 1.0,
     ):
         """
         Initialize the Few-Shot Classifier
@@ -33,6 +34,7 @@ class FewShotClassifier(nn.Module):
                 If None is passed, no normalization is performed.
         """
         super().__init__()
+        self.temperature = temperature
 
         self.backbone = backbone if backbone is not None else nn.Identity()
         self.use_softmax = use_softmax
@@ -89,8 +91,13 @@ class FewShotClassifier(nn.Module):
             images: images of shape (n_images, **image_shape)
         Returns:
             features of shape (n_images, feature_dimension)
-        """
+        """    
+        self.backbone.requires_grad_(False)
+        self.backbone.eval()
         original_features = self.backbone(images)
+        self.backbone.train()
+        self.backbone.requires_grad_(True)
+
         centered_features = original_features - self.feature_centering
         if self.feature_normalization is not None:
             return nn.functional.normalize(

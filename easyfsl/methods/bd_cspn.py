@@ -68,7 +68,8 @@ class BDCSPN(FewShotClassifier):
             query_features=query_features,
         )
         return self.softmax_if_specified(
-            self.cosine_distance_to_prototypes(query_features)
+            self.cosine_distance_to_prototypes(query_features),
+            temperature=self.temperature
         )
 
     @staticmethod
