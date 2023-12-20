@@ -91,12 +91,8 @@ class FewShotClassifier(nn.Module):
             images: images of shape (n_images, **image_shape)
         Returns:
             features of shape (n_images, feature_dimension)
-        """    
-        self.backbone.requires_grad_(False)
-        self.backbone.eval()
+        """   
         original_features = self.backbone(images)
-        self.backbone.train()
-        self.backbone.requires_grad_(True)
 
         centered_features = original_features - self.feature_centering
         if self.feature_normalization is not None:

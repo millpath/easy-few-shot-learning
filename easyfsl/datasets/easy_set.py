@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Set, Tuple, Union
 
 from PIL import Image
+import numpy as np
 
 from .default_configs import DEFAULT_IMAGE_FORMATS, default_transform
 from .few_shot_dataset import FewShotDataset
@@ -150,7 +151,7 @@ class EasySet(FewShotDataset):
         # Some images of ILSVRC2015 are grayscale, so we convert everything to RGB for consistence.
         # If you want to work on grayscale images, use torch.transforms.Grayscale in your
         # transformation pipeline.
-        img = self.transform(Image.open(self.images[item]).convert("RGB"))
+        img = self.transform(image=np.array(Image.open(self.images[item]).convert("RGB")))["image"]
         label = self.labels[item]
 
         return img, label
