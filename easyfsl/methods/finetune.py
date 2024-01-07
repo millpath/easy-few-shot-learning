@@ -1,5 +1,7 @@
 import torch
 from torch import Tensor, nn
+import torch.nn.functional as F
+from tqdm import tqdm
 
 from .few_shot_classifier import FewShotClassifier
 from easyfsl.methods.utils import compute_prototypes
@@ -67,14 +69,17 @@ class Finetune(FewShotClassifier):
         with torch.enable_grad():
             self.prototypes.requires_grad_()
             optimizer = torch.optim.Adam([self.prototypes], lr=self.fine_tuning_lr)
-            for _ in range(self.fine_tuning_steps):
-                support_logits = self.cosine_distance_to_prototypes(
-                    self.support_features
-                )
-                loss = nn.functional.cross_entropy(
-                    self.temperature * support_logits, self.support_labels
-                )
+            for _ in tqdm(range(self.fine_tuning_steps), total=self.fine_tuning_steps, desc="Finetuning"):
                 optimizer.zero_grad()
+                
+                support_logits = self.softmax_if_specified(
+                    self.cosine_distance_to_prototypes(self.support_features),
+                    temperature=self.temperature,
+                )
+
+                target = F.one_hot(self.support_labels, num_classes=len(torch.unique(self.support_labels))).float()
+                loss = nn.CrossEntropyLoss()(support_logits, target)
+
                 loss.backward()
                 optimizer.step()
         self.already_fine_tuned = True
@@ -87,6 +92,7 @@ class Finetune(FewShotClassifier):
         self,
         support_images: Tensor,
         support_labels: Tensor,
+        max_batchsize_prediction: int = None
     ):
         """
         Extract support features, compute prototypes, and store support labels, features, and prototypes.
@@ -98,7 +104,7 @@ class Finetune(FewShotClassifier):
         # i.e. we need to freeze the backbone.
         self.backbone.requires_grad_(False)
         self.support_labels = support_labels
-        self.support_features = self.compute_features(support_images)
+        self.support_features = self.compute_feature_in_steps(support_images, max_batchsize_prediction=max_batchsize_prediction)
         self._raise_error_if_features_are_multi_dimensional(self.support_features)
         self.prototypes = compute_prototypes(self.support_features, support_labels)
         # enable gradients for backbone to enable regular training

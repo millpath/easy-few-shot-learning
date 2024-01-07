@@ -68,6 +68,7 @@ class FewShotClassifier(nn.Module):
         self,
         support_images: Tensor,
         support_labels: Tensor,
+        max_batchsize_prediction: int = None
     ):
         """
         Harness information from the support set, so that query labels can later be predicted using a forward call.
@@ -76,7 +77,7 @@ class FewShotClassifier(nn.Module):
             support_images: images of the support set of shape (n_support, **image_shape)
             support_labels: labels of support set images of shape (n_support, )
         """
-        self.compute_prototypes_and_store_support_set(support_images, support_labels)
+        self.compute_prototypes_and_store_support_set(support_images, support_labels, max_batchsize_prediction)
 
     @staticmethod
     def is_transductive() -> bool:
@@ -140,6 +141,7 @@ class FewShotClassifier(nn.Module):
         self,
         support_images: Tensor,
         support_labels: Tensor,
+        max_batchsize_prediction: int = None
     ):
         """
         Extract support features, compute prototypes, and store support labels, features, and prototypes.
@@ -148,9 +150,32 @@ class FewShotClassifier(nn.Module):
             support_labels: labels of support set images of shape (n_support, )
         """
         self.support_labels = support_labels
-        self.support_features = self.compute_features(support_images)
+        self.support_features = self.compute_feature_in_steps(support_images, max_batchsize_prediction)
         self._raise_error_if_features_are_multi_dimensional(self.support_features)
         self.prototypes = compute_prototypes(self.support_features, support_labels)
+
+    def compute_feature_in_steps(self, support_images, max_batchsize_prediction) -> Tensor:
+        """Helperfunction that splits the computation of features into small batches to prevent out of memory errors
+
+        Args:
+            support_images (_type_): _description_
+            max_batchsize_prediction (_type_): _description_
+
+        Returns:
+            Tensor: _description_
+        """
+        resulting_feature = torch.tensor([]).to(support_images.device)
+        upper_index = 0
+        counter = 0
+        while upper_index != None:
+            lower_index = counter*max_batchsize_prediction
+            upper_index = lower_index+max_batchsize_prediction
+            if upper_index >= support_images.shape[0]:
+                upper_index = None
+            temp_feature = self.compute_features(support_images[lower_index:upper_index])
+            resulting_feature = torch.cat((resulting_feature, temp_feature), 0)
+            counter+=1
+        return resulting_feature
 
     @staticmethod
     def _raise_error_if_features_are_multi_dimensional(features: Tensor):
